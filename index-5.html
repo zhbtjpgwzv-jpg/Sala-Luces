@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Luces sincronizadas</title>
+<style>
+:root{--bg:#0b0a10;--card:#15131d;--line:#2a2638;--tx:#f3f1fa;--mut:#9a95b3;--ok:#2fe07a;--bad:#ff4d5e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+[hidden]{display:none!important}
+button,input,select{font:inherit}
+
+/* ---------- INVITADO ---------- */
+#guest{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;background:#000;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#bg{position:absolute;inset:0}
+#msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:4vmin;text-align:center}
+#msgt{display:block;width:100%;font-weight:900;line-height:1.02;text-transform:uppercase;overflow-wrap:anywhere}
+#dot{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;width:10px;height:10px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 2px rgba(0,0,0,.45)}
+#dot.ok{background:var(--ok)}
+#note{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);max-width:90vw;background:rgba(0,0,0,.55);color:#fff;font-size:13px;padding:8px 14px;border-radius:20px;text-align:center}
+#guest.hide #note{display:none}
+
+/* ---------- CONTROLADOR ---------- */
+#ctl{min-height:100%;padding:16px;max-width:1280px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+h1{font-size:22px;margin:0 auto 0 0;letter-spacing:-.01em}
+.room{display:flex;align-items:baseline;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 14px}
+.room span{color:var(--mut);font-size:13px}.room b{font-size:28px;letter-spacing:.14em;font-variant-numeric:tabular-nums}
+header input{width:110px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--tx);text-transform:uppercase;letter-spacing:.1em}
+.sm{padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:#211e2e;color:var(--tx);cursor:pointer}
+.sm:hover{background:#2a2639}
+.pill{padding:8px 14px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-weight:600}
+.pill.ok{color:var(--ok)}.pill.bad{color:var(--bad)}
+#warn{background:#3a2a10;border:1px solid #8a6420;color:#ffd890;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.col{display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{font-size:16px;margin:0 0 12px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 small{color:var(--mut);font-weight:400;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.big{min-height:104px;border:0;border-radius:20px;font-size:21px;font-weight:800;cursor:pointer;box-shadow:0 0 0 2px rgba(255,255,255,.08) inset,0 10px 30px -12px currentColor;transition:transform .08s,filter .15s}
+.big:hover{filter:brightness(1.12)}.big:active{transform:scale(.95)}
+.big.off{background:#000;color:#fff;box-shadow:0 0 0 2px #fff4 inset}
+.quick{min-height:78px;font-size:18px;background:#26223a;color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.1) inset}
+#stat{display:flex;align-items:center;gap:14px;font-size:18px;font-weight:600}
+#sw{width:56px;height:56px;border-radius:14px;background:#000;border:2px solid #fff3;flex:none}
+.locked .grid{opacity:.3;pointer-events:none}
+#lock{display:none;background:#12331f;color:var(--ok);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-weight:600}
+.locked #lock{display:block}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.row input[type=text]{flex:1 1 220px;padding:14px;border-radius:12px;border:1px solid var(--line);background:#0e0c15;color:var(--tx);font-size:18px}
+.row label{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:14px}
+input[type=color]{width:46px;height:40px;border:0;background:none;padding:0}
+.go{padding:14px 22px;border-radius:12px;border:0;background:#5b4bff;color:#fff;font-weight:800;font-size:17px;cursor:pointer}
+.go.grey{background:#3a3550}
+.player{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.player input[type=range]{flex:1 1 200px}
+.mt{color:var(--mut);font-size:14px;font-variant-numeric:tabular-nums}
+.meter{height:10px;background:#0e0c15;border-radius:6px;overflow:hidden;flex:1 1 140px}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2fe07a,#ffe600,#ff4d5e)}
+#bd{width:16px;height:16px;border-radius:50%;background:#2a2638}#bd.on{background:#fff;box-shadow:0 0 12px #fff}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{width:36px;height:36px;border-radius:50%;border:3px solid transparent;opacity:.35;cursor:pointer}
+.chip.on{opacity:1;border-color:#fff}
+.sw{position:relative;display:inline-block;width:56px;height:30px;flex:none}
+.sw input{opacity:0;width:0;height:0}.sw s{position:absolute;inset:0;background:#3a3550;border-radius:30px;transition:.2s;cursor:pointer}
+.sw s:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+s{background:#5b4bff}.sw input:checked+s:before{transform:translateX(26px)}
+.side{position:sticky;top:16px}
+#qr{background:#fff;border-radius:16px;padding:14px;line-height:0}#qr svg,#qr img{width:100%;height:auto}
+#lnk{word-break:break-all;font-size:13px;color:var(--mut);margin:12px 0 8px}
+.side .sm{width:100%;margin-top:8px;display:block;text-align:center;text-decoration:none}
+.note{color:var(--mut);font-size:12px;margin-top:12px}
+@media(max-width:900px){main{grid-template-columns:1fr}.side{position:static;order:-1}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- INVITADO -->
+<div id="guest" hidden>
+  <div id="bg"></div>
+  <div id="msg"><span id="msgt"></span></div>
+  <div id="dot"></div>
+  <div id="note">Toca la pantalla para ocultar este aviso<br><span id="stx">Conectando…</span></div>
+</div>
+
+<!-- CONTROLADOR -->
+<div id="ctl" hidden>
+  <header>
+    <h1>Luces sincronizadas</h1>
+    <div class="room"><span>Sala</span><b id="rc"></b></div>
+    <input id="ri" maxlength="10" placeholder="Otro código" aria-label="Código de sala">
+    <button class="sm" id="rset">Cambiar sala</button>
+    <button class="sm" id="rnew">Sala nueva</button>
+    <div class="pill" id="cnt">📱 0 pantallas</div>
+    <div class="pill" id="cst">Conectando…</div>
+  </header>
+  <div id="warn" hidden></div>
+  <main>
+    <div class="col">
+      <section class="card"><h2>Estado de la sala</h2><div id="stat"><i id="sw"></i><span id="st2">Apagado</span></div></section>
+
+      <div id="manual" class="col">
+        <div id="lock">🎵 Modo automático MP3 activo. Pausa el MP3 o desactiva el modo para volver al control manual.</div>
+        <section class="card"><h2>Colores</h2><div class="grid" id="gc"></div></section>
+        <section class="card"><h2>Efectos <small>El estrobo puede afectar a personas sensibles a las luces intermitentes.</small></h2><div class="grid" id="ge"></div></section>
+      </div>
+
+      <section class="card">
+        <h2>Mensajes a pantalla completa</h2>
+        <div class="grid" id="gq"></div>
+        <div class="row">
+          <input type="text" id="mt" maxlength="60" placeholder="Escribe un mensaje corto">
+          <button class="go" id="msend">Enviar</button>
+          <button class="go grey" id="mclr">Quitar mensaje</button>
+        </div>
+        <div class="row">
+          <label>Fondo <input type="color" id="mbg" value="#ffd400"></label>
+          <label><input type="checkbox" id="nobg"> Sin fondo (sobre el color o efecto)</label>
+          <label>Texto <input type="color" id="mfg" value="#000000"></label>
+          <label><input type="checkbox" id="aut" checked> Contraste automático</label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>🎵 Show automático al ritmo</h2>
+        <div class="row" style="margin-top:0"><label>Fuente de audio
+          <select id="src" class="sm"><option value="mp3">Archivo MP3</option><option value="tab">Spotify / pestaña (Chrome)</option><option value="mic">Micrófono</option></select></label></div>
+        <div id="bmp3">
+          <div class="player" style="margin-top:12px">
+            <input type="file" id="file" accept="audio/*,.mp3">
+            <button class="sm" id="bplay">▶ Play</button>
+            <button class="sm" id="bpause">⏸ Pausa</button>
+            <button class="sm" id="bstop">⏹ Stop</button>
+          </div>
+          <div class="player" style="margin-top:10px"><input type="range" id="pr" min="0" max="1000" value="0"><span class="mt" id="pt">0:00 / 0:00</span></div>
+        </div>
+        <div id="bstr" hidden>
+          <div class="player" style="margin-top:12px"><button class="sm" id="bconn">🔌 Conectar pestaña (Spotify)</button><button class="sm" id="bdisc">Desconectar</button></div>
+          <div class="note" id="shint"></div>
+        </div>
+        <div class="row">
+          <label class="sw"><input type="checkbox" id="am"><s></s></label><b>Modo automático</b>
+          <span class="mt" id="ast">Elige una fuente de audio.</span>
+        </div>
+        <div class="row">
+          <label>Sensibilidad <input type="range" id="sens" min="1" max="10" value="8"></label>
+          <label>Estilo
+            <select id="sty" class="sm"><option value="fade">Fades al ritmo</option><option value="cut">Cortes secos</option></select>
+          </label>
+          <label>Paleta
+            <select id="pre" class="sm"><option>Todos</option><option>Fiesta</option><option>Neón</option><option>Fuego</option><option>Hielo</option></select>
+          </label>
+        </div>
+        <div class="row"><div class="chips" id="chips"></div></div>
+        <div class="row"><span class="mt">Graves</span><div class="meter"><i id="mb"></i></div><span class="mt">Energía</span><div class="meter"><i id="me"></i></div><i id="bd"></i></div>
+        <div class="note">Mantén abierta esta pestaña (mejor en su propia ventana). Con «Fades al ritmo» la pantalla respira con los graves y cada golpe hace un cruce suave al siguiente color.</div>
+      </section>
+    </div>
+
+    <aside class="card side">
+      <h2>Invitados</h2>
+      <div id="qr"></div>
+      <div id="lnk"></div>
+      <button class="sm" id="copy">Copiar enlace</button>
+      <a class="sm" id="test" target="_blank" rel="noopener">Abrir pantalla de invitado (prueba)</a>
+    </aside>
+  </main>
+  <audio id="au" hidden></audio>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" onerror="window.qrFail=1"></script>
+<script>
+const $=i=>document.getElementById(i);
+const Q=new URLSearchParams(location.search);
+const cleanCode=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10);
+const ALPH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newCode=()=>Array.from({length:5},()=>ALPH[Math.random()*ALPH.length|0]).join('');
+let room=cleanCode(Q.get('room')), off=0, samples=[];
+
+/* ---- conexión + sincronía de reloj ---- */
+function connect(role,h){
+  let ws,tries=0,rt,pt;
+  const ping=()=>ws.readyState===1&&ws.send(JSON.stringify({t:'ping',c:Date.now()}));
+  function open(){
+    clearTimeout(rt);
+    const me=ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+    me.onopen=()=>{tries=0;me.send(JSON.stringify({t:'join',room,role}));h.status(true);samples=[];let n=0;(function p(){ping();if(++n<8)setTimeout(p,250)})();clearInterval(pt);pt=setInterval(ping,10000)};
+    me.onmessage=e=>{const m=JSON.parse(e.data);
+      if(m.t==='state')h.state(m.state);
+      else if(m.t==='count'&&h.count)h.count(m);
+      else if(m.t==='pong'){const n=Date.now(),rtt=n-m.c;samples.push({rtt,o:m.s+rtt/2-n});if(samples.length>10)samples.shift();off=samples.reduce((a,b)=>b.rtt<a.rtt?b:a).o}};
+    me.onclose=()=>{if(me!==ws)return;h.status(false);rt=setTimeout(open,Math.min(4000,400*++tries))};
+  }
+  open();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ws.readyState>1)open()});
+  return{set:p=>{if(ws.readyState===1)ws.send(JSON.stringify({t:'set',patch:p}))}};
+}
+const contrast=h=>{const n=parseInt(h.slice(1),16);return(.299*(n>>16)+.587*(n>>8&255)+.114*(n&255))>150?'#000000':'#ffffff'};
+
+if(Q.get('view')==='guest') guest(); else controller();
+
+/* =================== INVITADO =================== */
+function guest(){
+  $('guest').hidden=false;
+  document.documentElement.style.cssText=document.body.style.cssText='overflow:hidden;overscroll-behavior:none;position:fixed;inset:0;width:100%;height:100%;background:#000';
+  const g=$('guest'),bg=$('bg'),msg=$('msg'),mt=$('msgt');
+  let S=null,wl=null,D=[0,0,0],L=1,kick=0,lt=performance.now();const hex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+  if(!room){$('stx').textContent='Falta el código de sala en el enlace';return}
+
+  const keepAwake=async()=>{try{wl=await navigator.wakeLock.request('screen')}catch{}};
+  let first=true;
+  g.addEventListener('click',()=>{
+    g.classList.toggle('hide');
+    if(first){first=false;keepAwake();const r=document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen;try{r&&r.call(document.documentElement)}catch{}}
+  });
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake()});
+  addEventListener('resize',fit);
+
+  function fit(){
+    if(msg.style.display!=='flex')return;
+    let lo=8,hi=Math.max(innerWidth,innerHeight);
+    const room_=msg.clientHeight-2*parseFloat(getComputedStyle(msg).paddingTop);
+    for(let i=0;i<14;i++){const mid=(lo+hi)/2;mt.style.fontSize=mid+'px';mt.offsetHeight<=room_?lo=mid:hi=mid}
+    mt.style.fontSize=lo+'px';
+  }
+  function renderMsg(){
+    const m=S&&S.message;
+    if(!m){msg.style.display='none';return}
+    msg.style.display='flex';
+    msg.style.background=m.bg||'transparent';
+    mt.style.color=m.fg;
+    mt.style.textShadow=m.bg?'none':'0 0 .06em #000,0 0 .12em #000,0 .03em .1em #000';
+    mt.textContent=m.text;fit();
+  }
+  function apply(s){
+    const prev=S&&S.v;S=s;
+    if(s.beat&&prev!==null&&prev!==undefined&&prev!==s.v)kick=1;
+    renderMsg();
+  }
+  (function frame(){
+    const t=Date.now()+off,now=performance.now(),dt=Math.min(100,now-lt);lt=now;let c='#000',o=1;
+    if(S){
+      if(S.mode==='color'||S.mode==='off'){
+        const T=hex(S.mode==='off'?'#000000':S.color),tau=(S.fade||0)/3,a=tau>0?1-Math.exp(-dt/tau):1;
+        for(let i=0;i<3;i++)D[i]+=(T[i]-D[i])*a;
+        if(S.lvl==null)L=1;else L+=(S.lvl-L)*(1-Math.exp(-dt/(S.lvl>L?35:150)));
+        kick*=Math.exp(-dt/160);
+        c='rgb('+D.map(v=>Math.round(Math.min(255,(v+(255-v)*kick*.45)*L))).join()+')';
+      }
+      else if(S.mode==='effect')switch(S.effect){
+        case'strobe':c=Math.floor(t/90)%2?'#fff':'#000';break;
+        case'rainbow':c='hsl('+((t/20)%360)+',100%,50%)';break;
+        case'pulse':{const p=S.period||1400;c=S.color;o=.08+.92*(1-Math.cos(2*Math.PI*(t%p)/p))/2;break}
+        case'siren':c=Math.floor(t/450)%2?'#0030ff':'#ff0000';break;
+      }
+    }
+    bg.style.background=c;bg.style.opacity=o;
+    requestAnimationFrame(frame);
+  })();
+  connect('guest',{state:apply,status:ok=>{$('dot').className=ok?'ok':'';$('stx').textContent=ok?'Conectado a la sala '+room:'Reconectando…'}});
+}
+
+/* =================== CONTROLADOR =================== */
+function controller(){
+  $('ctl').hidden=false;
+  if(!room)room=cleanCode(localStorage.room)||newCode();
+  localStorage.room=room;
+  history.replaceState(null,'','?room='+room);
+  $('rc').textContent=room;
+
+  let PUB=location.origin,cur={},lastColor='#a020f0';
+  const guestURL=()=>PUB+'/?room='+room+'&view=guest';
+  const goRoom=c=>{c=cleanCode(c);if(c){localStorage.room=c;location.href='?room='+c}};
+  $('rset').onclick=()=>goRoom($('ri').value);
+  $('ri').onkeydown=e=>{if(e.key==='Enter')goRoom($('ri').value)};
+  $('rnew').onclick=()=>goRoom(newCode());
+
+  /* QR + enlace */
+  function drawQR(){
+    const url=guestURL();$('lnk').textContent=url;$('test').href=url;
+    try{const q=qrcode(0,'M');q.addData(url);q.make();$('qr').innerHTML=q.createSvgTag({cellSize:8,margin:1,scalable:true})}
+    catch{$('qr').innerHTML='<img alt="Código QR" src="https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=0&data='+encodeURIComponent(url)+'">'}
+    const w=$('warn');
+    if(location.origin!==PUB){
+      w.hidden=false;
+      w.textContent='Estás en '+location.origin+', pero los invitados entran por '+PUB+'. Para que compartan sala, abre el controlador allí: ';
+      const a=document.createElement('a');a.href=PUB+'/?room='+room;a.textContent='abrir en la dirección pública';a.style.color='#fff';a.style.fontWeight='700';w.append(a);
+    }else w.hidden=true;
+  }
+  drawQR();
+  fetch('/config').then(r=>r.json()).then(c=>{if(c.publicUrl)PUB=c.publicUrl;drawQR()}).catch(()=>{});
+  $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(guestURL());$('copy').textContent='Enlace copiado'}catch{$('copy').textContent='Copia el enlace a mano'}setTimeout(()=>$('copy').textContent='Copiar enlace',1800)};
+
+  /* conexión */
+  const C=connect('controller',{
+    status:ok=>{$('cst').textContent=ok?'● Conectado':'○ Reconectando…';$('cst').className='pill '+(ok?'ok':'bad')},
+    state:s=>{cur=s;showState()},
+    count:m=>{$('cnt').textContent='📱 '+m.guests+(m.guests===1?' pantalla':' pantallas')}
+  });
+
+  /* botones */
+  const COLORS=[['Rojo','#ff1f1f'],['Verde','#16e04a'],['Azul','#1f4dff'],['Amarillo','#ffe600'],['Morado','#a020f0'],['Blanco','#ffffff']];
+  const NM={};COLORS.forEach(([n,h])=>NM[h]=n);
+  const mk=(txt,bg,fg,cls)=>{const b=document.createElement('button');b.className='big '+(cls||'');b.textContent=txt;if(bg)b.style.background=bg;if(fg)b.style.color=fg;return b};
+  COLORS.forEach(([n,h])=>{const b=mk(n,h,contrast(h));b.onclick=()=>{lastColor=h;C.set({mode:'color',color:h,effect:null,beat:false,auto:false})};$('gc').append(b)});
+  const bo=mk('Apagar / negro','#000','#fff','off');bo.onclick=()=>C.set({mode:'off',color:'#000000',effect:null,beat:false,auto:false});$('gc').append(bo);
+  const EF=[['⚡ Estrobo','strobe','linear-gradient(135deg,#fff 50%,#222 50%)','#000'],['🌈 Arcoíris','rainbow','linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f)','#000'],['💓 Pulso','pulse','radial-gradient(circle,#c070ff,#3a1a66)','#fff'],['🚨 Sirena','siren','linear-gradient(90deg,#f00 50%,#0030ff 50%)','#fff']];
+  const EN={strobe:'Estrobo',rainbow:'Arcoíris',pulse:'Pulso',siren:'Sirena'};
+  EF.forEach(([n,e,bg,fg])=>{const b=mk(n,bg,fg);b.onclick=()=>C.set({mode:'effect',effect:e,color:lastColor,period:1400,beat:false,auto:false});$('ge').append(b)});
+
+  /* mensajes */
+  function sendMsg(t){
+    t=(t||'').trim();if(!t)return;
+    const nb=$('nobg').checked,bg=nb?null:$('mbg').value;
+    C.set({message:{text:t,bg,fg:$('aut').checked?(nb?'#ffffff':contrast(bg)):$('mfg').value}});
+  }
+  ['¡MANOS ARRIBA!','¡BIS!','ZONA VIP','¡SALTO!','¡MÁS FUERTE!','¡GRACIAS!'].forEach(t=>{const b=mk(t,null,null,'quick');b.onclick=()=>sendMsg(t);$('gq').append(b)});
+  $('msend').onclick=()=>sendMsg($('mt').value);
+  $('mt').onkeydown=e=>{if(e.key==='Enter')sendMsg($('mt').value)};
+  $('mclr').onclick=()=>C.set({message:null});
+
+  /* estado visible */
+  function showState(){
+    const s=cur,p=[];
+    p.push(s.mode==='color'?'Color '+(NM[s.color]||s.color):s.mode==='effect'?'Efecto '+EN[s.effect]:'Apagado');
+    if(s.auto)p.unshift('🎵 Automático');
+    if(s.message)p.push('Mensaje «'+s.message.text+'»');
+    $('st2').textContent=p.join(' · ');
+    $('sw').style.background=s.mode==='color'?s.color:s.mode==='effect'?(EF.find(x=>x[1]===s.effect)||[])[2]||'#000':'#000';
+  }
+
+  /* ---- MP3 automático ---- */
+  const PAL=[['Rojo','#ff1f1f'],['Naranja','#ff7a00'],['Amarillo','#ffe600'],['Verde','#16e04a'],['Cian','#00e5ff'],['Azul','#1f4dff'],['Morado','#a020f0'],['Rosa','#ff2d95'],['Blanco','#ffffff']];
+  const PRE={Todos:PAL.map(p=>p[0]),Fiesta:['Rojo','Verde','Azul','Amarillo','Morado'],'Neón':['Rosa','Cian','Verde','Amarillo'],Fuego:['Rojo','Naranja','Amarillo','Blanco'],Hielo:['Azul','Cian','Blanco','Morado']};
+  const on=new Set(PRE.Todos);
+  PAL.forEach(([n,h])=>{const c=document.createElement('button');c.className='chip on';c.title=n;c.style.background=h;c.dataset.n=n;
+    c.onclick=()=>{on.has(n)?on.delete(n):on.add(n);c.classList.toggle('on',on.has(n))};$('chips').append(c)});
+  $('pre').onchange=e=>{on.clear();PRE[e.target.value].forEach(n=>on.add(n));document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',on.has(c.dataset.n)))};
+
+  const src=$('src'),au=$('au');
+  let ctx,an,buf,mp3node,strnode,stream;
+  const fmt=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
+  function initCtx(){
+    if(ctx)return;
+    ctx=new(window.AudioContext||window.webkitAudioContext)();
+    an=ctx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.05;an.minDecibels=-95;an.maxDecibels=-20;
+    buf=new Uint8Array(an.frequencyBinCount);
+  }
+  const live=()=>src.value==='mp3'?(!au.paused&&!au.ended&&!!au.src):!!(stream&&stream.getAudioTracks().some(t=>t.readyState==='live'));
+
+  /* MP3 */
+  $('file').onchange=e=>{const f=e.target.files[0];if(!f)return;au.src=URL.createObjectURL(f);$('ast').textContent='Cargado: '+f.name;refresh()};
+  $('bplay').onclick=()=>{
+    if(!au.src){$('ast').textContent='Primero carga un MP3.';return}
+    initCtx();
+    if(!mp3node){mp3node=ctx.createMediaElementSource(au);mp3node.connect(ctx.destination)}
+    mp3node.connect(an);ctx.resume();au.play();
+  };
+  $('bpause').onclick=()=>au.pause();
+  $('bstop').onclick=()=>{au.pause();au.currentTime=0;refresh()};
+  $('pr').oninput=e=>{if(au.duration)au.currentTime=au.duration*e.target.value/1000};
+  au.ontimeupdate=()=>{if(au.duration)$('pr').value=au.currentTime/au.duration*1000;$('pt').textContent=fmt(au.currentTime)+' / '+fmt(au.duration)};
+  ['play','pause','ended'].forEach(ev=>au.addEventListener(ev,refresh));
+
+  /* Spotify (audio de otra pestaña) o micrófono */
+  const HINT={tab:'Abre Spotify en el navegador (open.spotify.com) en otra pestaña. Pulsa «Conectar», elige esa pestaña y marca «Compartir audio de la pestaña». Solo funciona en Chrome o Edge de ordenador.',mic:'Pon la música por altavoces cerca del ordenador. Es menos preciso que capturar la pestaña.'};
+  function disc(){
+    if(strnode){try{strnode.disconnect()}catch{}strnode=null}
+    if(stream){stream.getTracks().forEach(t=>{t.onended=null;t.stop()});stream=null}
+    refresh();
+  }
+  async function conn(){
+    initCtx();await ctx.resume();disc();
+    try{
+      stream=src.value==='tab'
+        ?await navigator.mediaDevices.getDisplayMedia({video:true,audio:true})
+        :await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    }catch(e){stream=null;$('ast').textContent='No se pudo conectar el audio ('+(e.name||'error')+').';return}
+    const at=stream.getAudioTracks();
+    if(!at.length){stream.getTracks().forEach(t=>t.stop());stream=null;$('ast').textContent='No llegó audio: al elegir la pestaña marca «Compartir audio de la pestaña».';return}
+    if(mp3node){try{mp3node.disconnect(an)}catch{}}
+    strnode=ctx.createMediaStreamSource(new MediaStream(at));strnode.connect(an);
+    stream.getTracks().forEach(t=>t.onended=disc);
+    $('ast').textContent='Audio conectado. Activa el modo automático.';refresh();
+  }
+  $('bconn').onclick=conn;$('bdisc').onclick=disc;
+  src.onchange=()=>{
+    const m=src.value==='mp3';
+    $('bmp3').hidden=!m;$('bstr').hidden=m;
+    $('shint').textContent=HINT[src.value]||'';
+    $('bconn').textContent=src.value==='tab'?'🔌 Conectar pestaña (Spotify)':'🎤 Activar micrófono';
+    au.pause();disc();
+  };
+  $('am').onchange=refresh;
+
+  /* Motor automático */
+  const A={running:false,saved:null,last:0,quietAt:0,dimmed:false,i:-1,color:'#a020f0',peak:40,lastSend:0,lastL:1,fade:0,prev:new Uint8Array(1024),fh:[],bh:[]};
+  const dim=()=>{A.dimmed=true;C.set({mode:'color',color:A.color,effect:null,beat:false,auto:true,fade:600,lvl:.08})};
+  function refresh(){
+    const want=$('am').checked&&live();
+    if(want&&!A.running){
+      A.running=true;A.last=performance.now();A.quietAt=0;A.fh=[];A.bh=[];A.peak=40;
+      A.saved={mode:cur.mode||'off',color:cur.color||'#000000',effect:cur.effect||null,period:cur.period||1400};
+      dim();$('ast').textContent='Automático activo: siguiendo el ritmo…';
+    }else if(!want&&A.running){
+      A.running=false;
+      C.set({...A.saved,beat:false,auto:false});
+      $('ast').textContent=$('am').checked?'Esperando audio…':'Control manual.';
+    }
+    $('manual').classList.toggle('locked',A.running);
+  }
+  const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  function tick(){
+    if(!ctx||!live())return;
+    an.getByteFrequencyData(buf);
+    const hz=ctx.sampleRate/an.fftSize,lo=Math.max(1,Math.round(30/hz)),hi=Math.round(150/hz),n=Math.round(1500/hz);
+    let b=0;for(let i=lo;i<=hi;i++)b+=buf[i];b/=(hi-lo+1);
+    let e=0;for(let i=1;i<256;i++)e+=buf[i];e/=255;
+    let fl=0;for(let i=1;i<n;i++){const d=buf[i]-A.prev[i];if(d>0)fl+=d*(i<=hi?2:1)}
+    fl/=n;A.prev.set(buf);
+    const now=performance.now(),s=+$('sens').value;
+    A.fh.push(fl);if(A.fh.length>60)A.fh.shift();
+    A.bh.push(b);if(A.bh.length>60)A.bh.shift();
+    const m=mean(A.fh),sd=Math.sqrt(mean(A.fh.map(v=>(v-m)**2))),bm=mean(A.bh);
+    const cool=200-9*s,k=2.2-.17*s;
+    const hit=now-A.last>=cool&&((fl>m+k*sd&&fl>1.2)||(b>bm*(1.3-.02*s)&&b>55));
+    A.peak=Math.max(40,b,A.peak*.998);
+    const L=Math.min(1,.7*(b/A.peak)+.3*Math.min(1,e/90)),oL=+(.22+.78*L).toFixed(2);
+    $('mb').style.width=b/255*100+'%';$('me').style.width=Math.min(100,e/120*100)+'%';
+    if(hit){$('bd').classList.add('on');setTimeout(()=>$('bd').classList.remove('on'),70)}
+    if(!A.running)return;
+    if(e<14){if(!A.quietAt)A.quietAt=now;if(now-A.quietAt>800&&!A.dimmed)dim()}
+    else if(e>18)A.quietAt=0;
+    const fadeStyle=$('sty').value==='fade';
+    if(hit){
+      A.fade=fadeStyle?Math.round(Math.min(380,Math.max(70,(now-A.last)*.5))):0;
+      A.last=now;A.dimmed=false;
+      const cols=PAL.filter(p=>on.has(p[0])).map(p=>p[1]);if(!cols.length)cols.push('#ffffff');
+      A.i=(A.i+1)%cols.length;A.color=cols[A.i];lastColor=A.color;
+      A.lastSend=now;A.lastL=oL;
+      C.set({mode:'color',color:A.color,effect:null,beat:true,auto:true,fade:A.fade,lvl:fadeStyle?oL:null});
+    }else if(fadeStyle&&!A.dimmed&&now-A.lastSend>=70&&Math.abs(oL-A.lastL)>.03){
+      A.lastSend=now;A.lastL=oL;
+      C.set({mode:'color',color:A.color,effect:null,beat:false,auto:true,fade:A.fade,lvl:oL});
+    }
+  }
+  src.onchange();
+  try{new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),16)']))).onmessage=tick}catch{setInterval(tick,16)}
+}
+</script>
+</body>
+</html>
